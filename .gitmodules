@@ -45,3 +45,6 @@
 [submodule "submodules/xen"]
 	path = submodules/xen
 	url = https://github.com/cirosantilli/xen
+[submodule "youtube-tutorials"]
+	path = youtube-tutorials
+	url = https://github.com/redhwannacef/youtube-tutorials.git
