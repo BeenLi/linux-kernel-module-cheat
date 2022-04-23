@@ -1,22 +1,40 @@
 #!/usr/bin/env python3
 
 import argparse
+from encodings import utf_8
 import os
+from re import T
 import sys
 
 import common
 import shell_helpers
 from shell_helpers import LF
+import subprocess
 
-container_name = common.consts['repo_short_id']
-container_hostname = common.consts['repo_short_id']
-image_name = common.consts['repo_short_id']
-target_dir = '/root/{}'.format(common.consts['repo_short_id'])
-docker = ['sudo', 'docker']
+
+# container_name = common.consts['repo_short_id']
+# container_hostname = common.consts['repo_short_id']
+# image_name = "wanli/" + common.consts['repo_short_id']
+# user_name = "dev"
+# target_dir = '/root/{}'.format(common.consts['repo_short_id'])
+docker = ['docker']
+
+# submodule = ["binutils-gdb", "boot-wrapper-aarch64", "qemu", "gem5", "gcc", "buildrooot", "crosstool-ng", "freebsd", "gem5-resources", "gensim", "glibc", "googletest", "linux", "xen"]
+# safe_directory_name = '/root/lkmc'
+docker = ['docker']
+def build(args):
+    # sh.run_cmd(docker + ['build', '-f', 'create_docker_iamges/Dockerfile', '-t', image_name , 'create_docker_iamges', LF])
+    sh.run_cmd(docker + ['build', '-t', image_name , '.', LF])
+
+def execute_shell(commad):
+    stdout_bytes, stderr_bytes = subprocess.Popen(commad, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+    return str(stdout_bytes, 'utf_8').replace("\n", "")
+def isroot():
+    return root;
 def create(args):
-    sh.run_cmd(docker + ['build', '-t', image_name, '.', LF])
     # --privileged for KVM:
     # https://stackoverflow.com/questions/48422001/launching-qemu-kvm-from-inside-docker-container
+
     sh.run_cmd(
         docker +
         [
@@ -26,10 +44,16 @@ def create(args):
             '--name', container_name, LF,
             '--net', 'host', LF,
             '--privileged', LF,
+            '--env', user_id, LF,
+            '--env', user_group_id, LF,
+            '--env', http_proxy, LF,
+            '--env', https_proxy, LF,
+            '--env', USER_CONFIG , LF,
             '-t', LF,
             '-w', target_dir, LF,
-            '-v', '{}:{}'.format(os.getcwd(), target_dir), LF,
-            image_name,
+            '-v', '{}:{}'.format(host_dir, target_dir), LF,
+            image_name, LF,
+            'bash'
         ]
     )
 def destroy(args):
@@ -43,7 +67,7 @@ def sh_func(args):
     else:
         sh_args = ['bash']
     exit_status = sh.run_cmd(
-        docker + ['exec', '-i', '-t', container_name] +
+        docker + ['exec', '-i', '-t', '--user', user_name, container_name] +
         sh_args +
         [LF],
         raise_on_failure=False
@@ -51,6 +75,9 @@ def sh_func(args):
     sys.exit(exit_status)
 def start(args):
     sh.run_cmd(docker + ['start', container_name, LF])
+    # sh.run_cmd(docker + ['exec', LF,  'lkmc', LF, 'git', LF, 'config',  LF, '--global', LF, '--add', LF, 'safe.directory', LF, safe_directory_name, LF])
+    # for submodule_name in submodule:
+    #     sh.run_cmd(docker + ['exec', 'lkmc','git', 'config', '--global', '--add', 'safe.directory', safe_directory_name + "/submodules/" + submodule_name, LF])
 def stop(args):
     sh.run_cmd(docker + ['stop', container_name, LF])
 cmd_action_map = {
@@ -59,11 +86,52 @@ cmd_action_map = {
     'sh': lambda args: sh_func(args),
     'start': lambda args: start(args),
     'stop': lambda args: stop(args),
+    'build': lambda args: build(args),
 }
 parser = argparse.ArgumentParser()
 parser.add_argument('--dry-run', default=False, action='store_true')
 parser.add_argument('cmd', choices=cmd_action_map, default='sh', nargs='?')
 parser.add_argument('args', nargs='*')
+parser.add_argument('--container_name', action="store",type=str, default="test_container", help="the container name you want run" )
+parser.add_argument('--image_name', action="store",type=str, default="test_iamge", help="the image name you want run" )
+parser.add_argument('--root', action="store_true", default=False, help="whether start the container using root" )
+parser.add_argument('--host_dir', action="store",type=str, help="the host dir you want to share with the docekr" )
+parser.add_argument('--repo_name', action="store",type=str,default= "test_dir", help="the repo_name you want use in docker" )
+
+# parser.add_argument('root', default=False, action='store_ture')
 args = parser.parse_args()
+container_name = args.container_name
+container_hostname = execute_shell('hostname')
+http_proxy = "http_proxy="+ execute_shell('echo $http_proxy')
+https_proxy = "https_proxy=" + execute_shell('echo $http_proxy') 
+# user_id_bytes = subprocess.Popen('id -u', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+user_id = "DEV_UID=" + execute_shell('id -u')
+# user_group_id_bytes = subprocess.Popen('id -g', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+user_group_id = "DEV_GID=" + execute_shell('id -g')
+print(http_proxy)
+# print(container_hostname)
+# print("user id = ", execute_shell('id -u'))
+image_name = "wanli/" + args.image_name
+if args.root:
+    root = True
+    user_name = 'root'
+    target_dir = '/{}/{}'.format(user_name, args.repo_name)
+    # common._init()
+    # common.set_value('root', True)
+    
+else:
+    root = False
+    user_name = 'dev'
+    target_dir = '/home/{}/{}'.format(user_name, args.repo_name)
+    # common._init()
+    # common.set_value('root', False)
+
+host_dir = os.getcwd()
+if args.host_dir:
+    host_dir = args.host_dir
+USER_CONFIG = "USER_CONFIG=" + target_dir + '/docker-user-config.sh'
+print(USER_CONFIG)
+print("host_dir=", host_dir)
+
 sh = shell_helpers.ShellHelpers(dry_run=args.dry_run)
 cmd_action_map[args.cmd](args.args)
