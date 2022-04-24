@@ -6,6 +6,7 @@ import itertools
 import math
 import os
 import re
+import sys
 import subprocess
 
 import cli_function
@@ -13,7 +14,8 @@ import common
 import lkmc
 import shell_helpers
 from shell_helpers import LF
-
+# sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+# import run_docker
 class _Component:
     '''
     Yes, we are re-inventing a crappy dependency resolution system,
@@ -550,8 +552,16 @@ Which components to build. Default: qemu-buildroot
                     with open(sources_path, 'r') as f:
                         sources_txt = f.read()
                     sources_txt = re.sub('^# deb-src ', 'deb-src ', sources_txt, flags=re.MULTILINE)
-                    with open(sources_path, 'w') as f:
-                        f.write(sources_txt)
+                    # with open(sources_path, 'w') as f:
+                    #     f.write(sources_txt)
+                    if(os.name == 'posix' and os.getuid() == 0):
+                        with open(sources_path, 'w') as f:
+                            f.write(sources_txt)
+                    else:
+                        m = os.system('touch test_apt.list')
+                        with open("test_apt.list", 'w') as f:
+                            f.write(sources_txt)
+                        p = os.system('sudo mv test_apt.list %s' % sources_path)
                 else:
                     sudo = ['sudo']
                 if common.consts['in_docker'] or self.env['travis']:
@@ -559,6 +569,10 @@ Which components to build. Default: qemu-buildroot
                 else:
                     y = []
                 if self.env['apt']:
+                    if(os.name == 'posix' and os.getuid() == 0):
+                        sudo=[]
+                    else:
+                        sudo = ['sudo']
                     self.sh.run_cmd(
                         sudo + ['apt-get', 'update', LF]
                     )
