@@ -350,8 +350,11 @@ class ShellHelpers:
         '''
         if out_file is None and out_str is None:
             if show_stdout:
-                stdout = None
-                stderr = None
+                # print("======================")
+                # print("stdout = sys.stdout")
+                # print("======================")
+                stdout = sys.stdout
+                stderr = sys.stderr
             else:
                 stdout = subprocess.DEVNULL
                 stderr = subprocess.DEVNULL

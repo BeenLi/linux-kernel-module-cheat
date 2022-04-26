@@ -7,12 +7,17 @@ import sys
 import common
 import shell_helpers
 from shell_helpers import LF
+import subprocess
 
 container_name = common.consts['repo_short_id']
 container_hostname = common.consts['repo_short_id']
-image_name = common.consts['repo_short_id']
+image_name = "wanli/" + common.consts['repo_short_id']
 target_dir = '/root/{}'.format(common.consts['repo_short_id'])
-docker = ['sudo', 'docker']
+docker = ['docker']
+
+def execute_shell(commad):
+    stdout_bytes, stderr_bytes = subprocess.Popen(commad, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+    return str(stdout_bytes, 'utf_8').replace("\n", "")
 def create(args):
     sh.run_cmd(docker + ['build', '-t', image_name, '.', LF])
     # --privileged for KVM:
@@ -26,6 +31,8 @@ def create(args):
             '--name', container_name, LF,
             '--net', 'host', LF,
             '--privileged', LF,
+            '--env', http_proxy, LF,
+            '--env', https_proxy, LF,
             '-t', LF,
             '-w', target_dir, LF,
             '-v', '{}:{}'.format(os.getcwd(), target_dir), LF,
@@ -65,5 +72,8 @@ parser.add_argument('--dry-run', default=False, action='store_true')
 parser.add_argument('cmd', choices=cmd_action_map, default='sh', nargs='?')
 parser.add_argument('args', nargs='*')
 args = parser.parse_args()
+container_hostname = execute_shell('hostname')
+http_proxy = "http_proxy="+ execute_shell('echo $http_proxy')
+https_proxy = "https_proxy=" + execute_shell('echo $http_proxy') 
 sh = shell_helpers.ShellHelpers(dry_run=args.dry_run)
 cmd_action_map[args.cmd](args.args)

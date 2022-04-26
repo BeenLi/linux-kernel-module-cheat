@@ -677,4 +677,7 @@ Which components to build. Default: qemu-buildroot
                     return ret
 
 if __name__ == '__main__':
+    # print("============================")
+    # print(common.consts['packages_dir'])
+    # print("============================")
     Main().cli()
